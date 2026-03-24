@@ -54,6 +54,12 @@ def _load_account_count_config() -> dict:
                 defaults.update(cfg)
         except Exception as e:
             print(f"[警告] 读取 config.json 失败: {e}")
+    # 环境变量覆盖（与 ncs_register.py 保持一致）
+    defaults["proxy"] = os.environ.get("PROXY", defaults["proxy"])
+    defaults["upload_api_url"] = os.environ.get("UPLOAD_API_URL", defaults["upload_api_url"])
+    defaults["upload_api_token"] = os.environ.get("UPLOAD_API_TOKEN", defaults["upload_api_token"])
+    defaults["mail_provider"] = os.environ.get("MAIL_PROVIDER", defaults.get("mail_provider", ""))
+    defaults["yydsmail_api_key"] = os.environ.get("YYDSMAIL_API_KEY", defaults.get("yydsmail_api_key", ""))
     return defaults
 
 
