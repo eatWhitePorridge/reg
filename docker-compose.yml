@@ -1,0 +1,20 @@
+services:
+  register:
+    build: .
+    container_name: codex-register
+    restart: unless-stopped
+    environment:
+      # ===== 邮箱配置 =====
+      - MAIL_PROVIDER=yydsmail
+      - YYDSMAIL_API_KEY=your-yydsmail-api-key
+      # ===== CPA 上传 =====
+      - UPLOAD_API_URL=http://your-server:8317/v0/management/auth-files
+      - UPLOAD_API_TOKEN=your-management-secret-key
+      # ===== 可选：代理 =====
+      # - PROXY=http://127.0.0.1:7890
+      # ===== 可选：注册数量 =====
+      # - TOTAL_ACCOUNTS=10
+    volumes:
+      # 持久化 token 和日志（可选）
+      - ./data/codex_tokens:/app/codex_tokens
+      - ./data/logs:/app/logs

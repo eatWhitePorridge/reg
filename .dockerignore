@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.git
+.gitignore
+*.md
+codex_tokens/
+registered_accounts.txt
+ak.txt
+rk.txt
+.env
+.DS_Store
