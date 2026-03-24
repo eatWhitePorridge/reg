@@ -21,7 +21,7 @@ REGISTER_SCRIPT = "ncs_register.py" # 注册脚本文件名
 
 # 注册参数（对应 ncs_register.py 的 main() 交互）
 AUTO_PARAMS = {
-    "proxy": "http://127.0.0.1:7890",  # 代理地址，留空=不使用代理
+    "proxy": os.environ.get("PROXY", ""),  # 代理地址，留空=不使用代理（可通过环境变量 PROXY 设置）
     "preflight": "n",                   # 是否执行启动前预检: "y" 或 "n"（调度建议 n，避免交互阻塞）
     "cpa_cleanup": "n",                 # 注册前是否清理 CPA 无效号: "y" 或 "n"
                                         # （调度器自己已经做了探测+删除，建议设 "n" 避免重复）
