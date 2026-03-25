@@ -15,6 +15,8 @@ from pathlib import Path
 from collections import deque
 from contextlib import redirect_stdout, redirect_stderr
 
+import importlib
+
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -72,6 +74,15 @@ class TaskState:
 
 _task_state = TaskState()
 _scheduler_state = {"running": False, "thread": None}
+
+# 懒加载 ncs_register 模块（只导入一次，避免 reload 引发递归）
+_ncs_module = None
+def _get_ncs():
+    global _ncs_module
+    if _ncs_module is None:
+        sys.path.insert(0, str(BASE_DIR))
+        _ncs_module = importlib.import_module("ncs_register")
+    return _ncs_module
 
 # ================= FastAPI App =================
 app = FastAPI(title="Codex Register Admin")
@@ -171,19 +182,11 @@ def trigger_register(body: RegisterRequest):
         _task_state.started_at = datetime.now().isoformat()
         _task_state.error = ""
         try:
-            # 动态导入，避免模块级副作用
-            sys.path.insert(0, str(BASE_DIR))
-            import importlib
-            ncs = importlib.import_module("ncs_register")
-            importlib.reload(ncs)
-
-            # 读取配置
+            ncs = _get_ncs()
             proxy = ncs.DEFAULT_PROXY if hasattr(ncs, "DEFAULT_PROXY") else ""
-            output_file = str(ACCOUNTS_FILE)
-
             ncs.run_batch(
                 total_accounts=body.total_accounts,
-                output_file=output_file,
+                output_file=str(ACCOUNTS_FILE),
                 max_workers=body.max_workers,
                 proxy=proxy,
                 cpa_cleanup=False,
@@ -213,9 +216,7 @@ def trigger_upload_cpa():
         _task_state.started_at = datetime.now().isoformat()
         _task_state.error = ""
         try:
-            sys.path.insert(0, str(BASE_DIR))
-            import importlib
-            ncs = importlib.import_module("ncs_register")
+            ncs = _get_ncs()
             ncs._upload_all_tokens_to_cpa()
             _append_log("CPA 上传完成")
         except Exception as e:
@@ -241,9 +242,7 @@ def trigger_cleanup():
         _task_state.started_at = datetime.now().isoformat()
         _task_state.error = ""
         try:
-            sys.path.insert(0, str(BASE_DIR))
-            import importlib
-            ncs = importlib.import_module("ncs_register")
+            ncs = _get_ncs()
             ncs._run_cpa_cleanup_before_register()
             _append_log("CPA 清理完成")
         except Exception as e:
@@ -273,9 +272,7 @@ def start_scheduler():
         _append_log("调度器已启动")
         try:
             sys.path.insert(0, str(BASE_DIR))
-            import importlib
             sched = importlib.import_module("auto_scheduler")
-            importlib.reload(sched)
 
             cfg = sched._load_account_count_config()
             use_cpa = bool(cfg.get("upload_api_url") and cfg.get("upload_api_token"))
