@@ -3,6 +3,8 @@ services:
     build: .
     container_name: codex-register
     restart: unless-stopped
+    ports:
+      - "8081:8081"
     environment:
       # ===== 邮箱配置 =====
       - MAIL_PROVIDER=yydsmail
@@ -12,9 +14,6 @@ services:
       - UPLOAD_API_TOKEN=your-management-secret-key
       # ===== 可选：代理 =====
       # - PROXY=http://127.0.0.1:7890
-      # ===== 可选：注册数量 =====
-      # - TOTAL_ACCOUNTS=10
     volumes:
-      # 持久化 token 和日志（可选）
+      # 持久化 token 数据
       - ./data/codex_tokens:/app/codex_tokens
-      - ./data/logs:/app/logs

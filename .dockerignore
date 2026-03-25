@@ -10,3 +10,6 @@ ak.txt
 rk.txt
 .env
 .DS_Store
+frontend/node_modules/
+frontend/dist/
+data/
