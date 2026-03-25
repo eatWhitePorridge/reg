@@ -1,12 +1,3 @@
-# ---- Stage 1: Build frontend ----
-FROM node:20-slim AS frontend-build
-WORKDIR /frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
-COPY frontend/ .
-RUN npm run build
-
-# ---- Stage 2: Python runtime ----
 FROM python:3.12-slim
 WORKDIR /app
 
@@ -19,8 +10,8 @@ COPY *.py ./
 COPY config.json .
 COPY zhuce5_cfmail_accounts.json .
 
-# 复制前端构建产物
-COPY --from=frontend-build /frontend/dist ./frontend/dist
+# 复制前端（纯 HTML 单文件）
+COPY frontend/index.html ./frontend/
 
 # 创建数据目录
 RUN mkdir -p codex_tokens

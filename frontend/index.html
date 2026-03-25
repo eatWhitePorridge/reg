@@ -1,12 +1,517 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Codex Register Admin</title>
-  </head>
-  <body class="bg-gray-900 text-gray-100">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codex Register Admin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#000;color:#a1a1aa;-webkit-font-smoothing:antialiased;min-height:100vh}
+::selection{background:#27272a;color:#fff}
+
+/* Nav */
+.nav{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{display:flex;align-items:center;gap:12px}
+.nav-icon{width:24px;height:24px;border-radius:6px;background:#f4f4f5;display:flex;align-items:center;justify-content:center}
+.nav-icon svg{width:16px;height:16px;color:#000}
+.nav-title{font-size:14px;font-weight:600;letter-spacing:-.02em;color:#f4f4f5}
+.nav-tabs{display:flex;gap:4px}
+.nav-tab{padding:6px 12px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;border:none;background:transparent;color:#71717a;transition:all .2s}
+.nav-tab:hover{color:#d4d4d8;background:#111}
+.nav-tab.active{color:#f4f4f5;background:#1a1a1a}
+
+/* Layout */
+.main{flex:1;padding:24px;max-width:1000px;margin:0 auto;width:100%}
+@media(min-width:768px){.main{padding:40px}}
+.page{display:none;animation:fadeIn .3s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Header */
+.page-header{display:flex;flex-direction:column;gap:24px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:24px;margin-bottom:40px}
+@media(min-width:768px){.page-header{flex-direction:row;align-items:flex-end;justify-content:space-between}}
+.page-title{font-size:30px;font-weight:600;letter-spacing:-.03em;color:#fff}
+.page-desc{font-size:15px;color:#71717a;margin-top:4px}
+
+/* Cards */
+.card{background:#0a0a0a;border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+.stat-grid{display:grid;grid-template-columns:1fr;gap:24px;margin-bottom:40px}
+@media(min-width:768px){.stat-grid{grid-template-columns:1fr 1fr}}
+.stat-card{padding:32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;border:1px solid rgba(255,255,255,.04)}
+.stat-label{font-size:14px;font-weight:500;color:#71717a;letter-spacing:.05em}
+.stat-value{font-size:60px;font-weight:300;color:#fff;letter-spacing:-.04em}
+
+/* Controls */
+.controls{display:flex;align-items:center;gap:16px;background:#0a0a0a;border:1px solid rgba(255,255,255,.08);padding:8px;border-radius:12px}
+.control-group{display:flex;align-items:center;gap:12px;padding:0 12px}
+.control-label{font-size:14px;font-weight:500;color:#71717a}
+.divider{width:1px;height:32px;background:rgba(255,255,255,.1)}
+
+/* Toggle */
+.toggle{position:relative;display:inline-flex;height:24px;width:40px;align-items:center;border-radius:999px;cursor:pointer;transition:background .2s;border:none}
+.toggle.off{background:#3f3f46}
+.toggle.on{background:#10b981}
+.toggle-dot{display:inline-block;height:16px;width:16px;border-radius:999px;background:#fff;transition:transform .2s}
+.toggle.off .toggle-dot{transform:translateX(4px)}
+.toggle.on .toggle-dot{transform:translateX(20px)}
+
+/* Buttons */
+.btn{padding:8px 16px;font-weight:500;font-size:14px;border-radius:8px;border:none;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:inherit}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:#f4f4f5;color:#18181b;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.btn-primary:hover:not(:disabled){background:#fff}
+.btn-secondary{background:#111;color:#d4d4d8;border:1px solid rgba(255,255,255,.1);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.btn-secondary:hover:not(:disabled){background:#1a1a1a;color:#fff}
+.btn-danger{background:rgba(244,63,94,.1);color:#fb7185;border:1px solid rgba(244,63,94,.2)}
+.btn-danger:hover:not(:disabled){background:#881337;color:#fff}
+.btn-wide{width:100%}
+
+/* Toast */
+.toast{background:#111;border:1px solid rgba(255,255,255,.1);padding:12px 16px;border-radius:12px;font-size:14px;color:#d4d4d8;display:none;align-items:center;justify-content:space-between;margin-bottom:24px}
+.toast.show{display:flex}
+.toast-close{background:none;border:none;color:#71717a;cursor:pointer;font-size:16px;padding:0 4px}
+.toast-close:hover{color:#fff}
+
+/* Error */
+.error-box{background:#1a0505;border:1px solid rgba(136,19,55,.5);padding:20px;border-radius:12px;display:flex;align-items:flex-start;gap:16px;color:#fb7185;font-size:14px;margin-bottom:24px}
+.error-box strong{color:#fda4af}
+
+/* Spinner */
+.spinner{width:16px;height:16px;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner circle{opacity:.25}
+.spinner path{opacity:.75}
+.status-line{text-align:center;font-size:14px;color:#71717a;display:flex;align-items:center;justify-content:center;gap:8px;padding-top:16px;margin-bottom:24px}
+
+/* Log panel */
+.log-toggle{font-size:14px;font-weight:500;color:#71717a;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;background:#0a0a0a;border:1px solid rgba(255,255,255,.04);border-radius:12px;cursor:pointer;transition:all .2s;border-style:solid}
+.log-toggle:hover{color:#d4d4d8;background:#111}
+.log-toggle svg{width:16px;height:16px;transition:transform .2s}
+.log-toggle.open svg{transform:rotate(180deg)}
+.log-box{margin-top:16px;overflow:hidden}
+.log-content{padding:20px;height:400px;overflow-y:auto;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;line-height:1.6;background:#050505}
+.log-line{color:#71717a;padding:2px 6px;border-radius:6px;transition:all .15s;word-break:break-all}
+.log-line:hover{color:#d4d4d8;background:#111}
+.log-empty{height:100%;display:flex;align-items:center;justify-content:center;color:#3f3f46;font-style:italic}
+
+/* Config page */
+.config-section{margin-bottom:32px}
+.config-section-header{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.04);background:#050505}
+.config-section-title{font-size:16px;font-weight:500;color:#fff}
+.config-section-desc{font-size:13px;color:#71717a;margin-top:4px}
+.config-grid{padding:24px;display:grid;grid-template-columns:1fr;gap:24px;background:#0a0a0a}
+@media(min-width:768px){.config-grid{grid-template-columns:1fr 1fr;gap:24px 40px}}
+.field-label{font-size:13px;font-weight:500;color:#71717a;margin-bottom:8px}
+.field-input{width:100%;background:#0a0a0a;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;font-size:14px;color:#f4f4f5;font-family:inherit;transition:all .2s;outline:none}
+.field-input::placeholder{color:#3f3f46}
+.field-input:focus{border-color:#71717a;box-shadow:0 0 0 1px #71717a}
+.config-toggle{position:relative;display:inline-flex;height:20px;width:36px;align-items:center;border-radius:999px;cursor:pointer;transition:background .2s;border:none}
+.config-toggle.off{background:#3f3f46}
+.config-toggle.on{background:#fff}
+.config-toggle-dot{display:inline-block;height:16px;width:16px;border-radius:999px;background:#000;transition:transform .2s}
+.config-toggle.off .config-toggle-dot{transform:translateX(2px);background:#fff}
+.config-toggle.on .config-toggle-dot{transform:translateX(18px)}
+.expand-btn{font-size:13px;font-weight:500;color:#71717a;width:100%;padding:16px;border:1px dashed rgba(255,255,255,.1);border-radius:12px;background:transparent;cursor:pointer;transition:all .2s}
+.expand-btn:hover{color:#d4d4d8;background:rgba(255,255,255,.02)}
+
+/* Maintenance */
+.maint-section{margin-top:48px;padding-top:40px;border-top:1px solid rgba(255,255,255,.08)}
+.maint-title{font-size:20px;font-weight:500;color:#fff}
+.maint-desc{font-size:14px;color:#71717a;margin-top:4px;margin-bottom:24px}
+.maint-grid{display:grid;grid-template-columns:1fr;gap:24px}
+@media(min-width:768px){.maint-grid{grid-template-columns:1fr 1fr}}
+.maint-card{padding:24px;display:flex;flex-direction:column;justify-content:space-between;gap:24px;background:#050505}
+.maint-card h3{font-size:14px;font-weight:500;color:#fff;margin-bottom:8px}
+.maint-card p{font-size:13px;color:#71717a;line-height:1.6}
+
+/* Config save bar */
+.save-bar{display:flex;align-items:center;gap:16px}
+.save-msg{font-size:14px;font-weight:500}
+.save-msg.ok{color:#00ffcc}
+.save-msg.err{color:#fb7185}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:32px">
+    <div class="nav-brand">
+      <div class="nav-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      </div>
+      <span class="nav-title">Codex 注册终端</span>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="dashboard">运行总览</button>
+      <button class="nav-tab" data-tab="config">系统设置</button>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+
+<!-- ========== Dashboard ========== -->
+<div id="page-dashboard" class="page active">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">运行总览</h1>
+      <p class="page-desc">实时监控与控制后台注册任务进程</p>
+    </div>
+    <div class="controls">
+      <div class="control-group">
+        <span class="control-label">自动模式</span>
+        <button id="auto-toggle" class="toggle off" onclick="toggleAuto()">
+          <span class="toggle-dot"></span>
+        </button>
+      </div>
+      <div class="divider"></div>
+      <button id="btn-register" class="btn btn-primary" style="padding:8px 20px" onclick="quickRegister()">快速注册</button>
+    </div>
+  </div>
+
+  <div id="dash-toast" class="toast">
+    <span id="dash-toast-text"></span>
+    <button class="toast-close" onclick="hideToast('dash-toast')">&times;</button>
+  </div>
+
+  <div class="stat-grid">
+    <div class="card stat-card">
+      <div class="stat-label">可用 TOKEN 总数</div>
+      <div class="stat-value" id="token-count">-</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label">已注册账号数</div>
+      <div class="stat-value" id="account-count">-</div>
+    </div>
+  </div>
+
+  <div id="error-box" class="error-box" style="display:none">
+    <svg style="width:20px;height:20px;flex-shrink:0;margin-top:2px" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <div><strong>执行遇到异常: </strong><span id="error-text"></span></div>
+  </div>
+
+  <div id="busy-line" class="status-line" style="display:none">
+    <svg class="spinner" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+    当前正在执行: <span id="busy-type" style="color:#d4d4d8;font-weight:500"></span>
+  </div>
+
+  <div style="padding-top:32px;border-top:1px solid rgba(255,255,255,.04)">
+    <button id="log-toggle-btn" class="log-toggle" onclick="toggleLogs()">
+      展开后台日志监控
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+    </button>
+    <div id="log-panel" class="card log-box" style="display:none">
+      <div id="log-content" class="log-content">
+        <div class="log-empty">等待日志输出中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Config ========== -->
+<div id="page-config" class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">系统设置</h1>
+      <p class="page-desc">管理全局运行参数与外部平台交互密钥</p>
+    </div>
+    <div class="save-bar">
+      <span id="save-msg" class="save-msg"></span>
+      <button class="btn btn-primary" style="padding:8px 24px" onclick="saveConfig()">保存修改</button>
+    </div>
+  </div>
+
+  <div id="config-sections"></div>
+
+  <button id="expand-advanced" class="expand-btn" onclick="showAdvanced()">展开开发者高级选项</button>
+
+  <div class="maint-section">
+    <h2 class="maint-title">高级维护操作</h2>
+    <p class="maint-desc">手动控制异常数据清洗与强制同步回传机制。</p>
+
+    <div id="action-toast" class="toast">
+      <span id="action-toast-text"></span>
+      <button class="toast-close" onclick="hideToast('action-toast')">&times;</button>
+    </div>
+
+    <div class="maint-grid">
+      <div class="card maint-card">
+        <div>
+          <h3>强制全量同步 CPA</h3>
+          <p>无视上传间隔设置，立即扫描并在后台强制将所有本地已注册未上报的 token 推送至服务端。</p>
+        </div>
+        <button class="btn btn-secondary btn-wide" onclick="maintAction('/api/upload-cpa')">立即执行同步</button>
+      </div>
+      <div class="card maint-card" style="border-color:rgba(136,19,55,.2)">
+        <div>
+          <h3>强力清理本地废号</h3>
+          <p>对接 CPA 云端执行 401/403 (Invalid Token) 鉴权扫描，并移除本地数据缓存，防止脏数据堆积。</p>
+        </div>
+        <button class="btn btn-danger btn-wide" onclick="maintAction('/api/cleanup')">立刻启动清理</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- .main -->
+
+<script>
+// ── State ──
+let status = null;
+let logs = [];
+let logOffset = 0;
+let showingLogs = false;
+let config = {};
+let advancedVisible = false;
+
+// ── Config field definitions ──
+const CONFIG_FIELDS = [
+  { key: 'mail_provider', label: '邮箱服务商 (mail_provider)', type: 'text' },
+  { key: 'proxy', label: '代理服务器地址', type: 'text' },
+  { key: 'total_accounts', label: '默认批量注册数量', type: 'number' },
+  { key: 'enable_oauth', label: '启用 OAuth 验证', type: 'bool' },
+  { key: 'oauth_required', label: '强制 OAuth 成功', type: 'bool' },
+  { key: 'upload_api_url', label: 'CPA 数据回传接口', type: 'text' },
+  { key: 'upload_api_token', label: 'CPA 鉴权 Token', type: 'text' },
+  { key: 'cpa_upload_every_n', label: '上传频率 (每 N 个)', type: 'number' },
+  { key: 'cpa_cleanup_enabled', label: '注册前执行 CPA 清理', type: 'bool' },
+  { key: 'duckmail_api_base', label: 'DuckMail API 节点', type: 'text' },
+  { key: 'duckmail_bearer', label: 'DuckMail 密钥 (Bearer)', type: 'text' },
+  { key: 'tempmail_lol_api_base', label: 'TempMail.lol API 节点', type: 'text' },
+  { key: 'yydsmail_api_base', label: 'YYDS Mail API 节点', type: 'text' },
+  { key: 'yydsmail_api_key', label: 'YYDS Mail API 密钥', type: 'text' },
+  { key: 'output_file', label: '数据输出路径', type: 'text' },
+  { key: 'ak_file', label: 'AK 文件位置', type: 'text' },
+  { key: 'rk_file', label: 'RK 文件位置', type: 'text' },
+  { key: 'token_json_dir', label: 'Token 缓存目录', type: 'text' },
+];
+
+const SETTINGS_GROUPS = [
+  { id: 'basic', title: '核心参数', description: '批量注册任务的基础参数与默认行为。', fields: ['total_accounts', 'cpa_upload_every_n', 'proxy'] },
+  { id: 'email', title: '邮箱服务配置', description: '设置临时邮箱接口路径及API鉴权密钥。', fields: ['mail_provider', 'duckmail_api_base', 'duckmail_bearer', 'tempmail_lol_api_base', 'yydsmail_api_base', 'yydsmail_api_key'] },
+  { id: 'cpa', title: 'CPA 平台集成', description: '配置外部数据遥测回传及预检规则。', fields: ['upload_api_url', 'upload_api_token', 'cpa_cleanup_enabled'] },
+  { id: 'advanced', title: '开发者选项 (底层配置)', description: '系统底层文件路径映射及驱动引擎配置。非必要请勿修改。', fields: ['enable_oauth', 'oauth_required', 'output_file', 'ak_file', 'rk_file', 'token_json_dir'] },
+];
+
+// ── Tab switching ──
+document.querySelectorAll('.nav-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Toast helpers ──
+function showToast(id, text) {
+  const el = document.getElementById(id);
+  document.getElementById(id + '-text').textContent = text;
+  el.classList.add('show');
+}
+function hideToast(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+// ── Dashboard ──
+function updateDashboard() {
+  if (!status) return;
+  document.getElementById('token-count').textContent = status.token_count ?? '-';
+  document.getElementById('account-count').textContent = status.account_count ?? '-';
+
+  const toggle = document.getElementById('auto-toggle');
+  toggle.className = 'toggle ' + (status.scheduler_running ? 'on' : 'off');
+
+  const isBusy = status.task && status.task.running;
+  const regBtn = document.getElementById('btn-register');
+
+  if (isBusy) {
+    regBtn.disabled = true;
+    regBtn.innerHTML = '<svg class="spinner" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> 运行中';
+  } else {
+    regBtn.disabled = false;
+    regBtn.textContent = '快速注册';
+  }
+
+  const errorBox = document.getElementById('error-box');
+  if (status.task && status.task.error) {
+    document.getElementById('error-text').textContent = status.task.error;
+    errorBox.style.display = 'flex';
+  } else {
+    errorBox.style.display = 'none';
+  }
+
+  const busyLine = document.getElementById('busy-line');
+  if (isBusy && !(status.task && status.task.error)) {
+    document.getElementById('busy-type').textContent = status.task.task_type;
+    busyLine.style.display = 'flex';
+  } else {
+    busyLine.style.display = 'none';
+  }
+}
+
+function renderLogs() {
+  const container = document.getElementById('log-content');
+  if (logs.length === 0) {
+    container.innerHTML = '<div class="log-empty">等待日志输出中...</div>';
+    return;
+  }
+  container.innerHTML = logs.map(line => '<div class="log-line">' + escapeHtml(line) + '</div>').join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fetchStatus() {
+  fetch('/api/status').then(r => r.json()).then(data => { status = data; updateDashboard(); }).catch(() => {});
+}
+
+function fetchLogs() {
+  fetch('/api/logs?since=' + logOffset).then(r => r.json()).then(data => {
+    if (data.logs.length > 0) {
+      logs = logs.concat(data.logs).slice(-200);
+      logOffset = data.total;
+      renderLogs();
+    }
+  }).catch(() => {});
+}
+
+async function apiPost(url, body) {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return await res.json();
+  } catch {
+    return { detail: '网络请求失败' };
+  }
+}
+
+async function toggleAuto() {
+  const url = status && status.scheduler_running ? '/api/scheduler/stop' : '/api/scheduler/start';
+  const data = await apiPost(url);
+  showToast('dash-toast', data.message || data.detail || '操作完成');
+  if (status) status.scheduler_running = !status.scheduler_running;
+  updateDashboard();
+}
+
+async function quickRegister() {
+  const data = await apiPost('/api/register', { total_accounts: 3, max_workers: 3, cpa_upload_every_n: 3 });
+  showToast('dash-toast', data.message || data.detail || '操作完成');
+}
+
+function toggleLogs() {
+  showingLogs = !showingLogs;
+  const btn = document.getElementById('log-toggle-btn');
+  const panel = document.getElementById('log-panel');
+  if (showingLogs) {
+    btn.textContent = '收起后台日志信息';
+    btn.insertAdjacentHTML('beforeend', ' <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;transform:rotate(180deg)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>');
+    btn.classList.add('open');
+    panel.style.display = 'block';
+    fetchLogs();
+  } else {
+    btn.innerHTML = '展开后台日志监控 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+    btn.classList.remove('open');
+    panel.style.display = 'none';
+  }
+}
+
+// Polling
+fetchStatus();
+fetchLogs();
+setInterval(() => {
+  fetchStatus();
+  if (showingLogs) fetchLogs();
+}, 3000);
+
+// ── Config page ──
+function renderConfigSections() {
+  const container = document.getElementById('config-sections');
+  let html = '';
+  for (const group of SETTINGS_GROUPS) {
+    if (group.id === 'advanced' && !advancedVisible) continue;
+    html += '<div class="card config-section">';
+    html += '<div class="config-section-header"><div class="config-section-title">' + group.title + '</div><div class="config-section-desc">' + group.description + '</div></div>';
+    html += '<div class="config-grid">';
+    for (const fieldKey of group.fields) {
+      const field = CONFIG_FIELDS.find(f => f.key === fieldKey);
+      if (!field) continue;
+      html += '<div><div class="field-label">' + field.label + '</div>';
+      if (field.type === 'bool') {
+        const on = !!config[field.key];
+        html += '<div style="height:40px;display:flex;align-items:center"><button class="config-toggle ' + (on ? 'on' : 'off') + '" onclick="toggleConfig(\'' + field.key + '\')"><span class="config-toggle-dot"></span></button></div>';
+      } else {
+        const val = config[field.key] ?? '';
+        html += '<input class="field-input" type="' + (field.type === 'number' ? 'number' : 'text') + '" value="' + escapeHtml(String(val)) + '" placeholder="输入 ' + field.label + '..." onchange="updateConfig(\'' + field.key + '\', this.value, \'' + field.type + '\')">';
+      }
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+  container.innerHTML = html;
+}
+
+function toggleConfig(key) {
+  config[key] = !config[key];
+  renderConfigSections();
+}
+
+function updateConfig(key, value, type) {
+  config[key] = type === 'number' ? Number(value) : value;
+}
+
+function showAdvanced() {
+  advancedVisible = true;
+  document.getElementById('expand-advanced').style.display = 'none';
+  renderConfigSections();
+}
+
+async function saveConfig() {
+  const msgEl = document.getElementById('save-msg');
+  msgEl.textContent = '';
+  try {
+    const res = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config }),
+    });
+    if (res.ok) {
+      msgEl.className = 'save-msg ok';
+      msgEl.textContent = '配置保存成功';
+    } else {
+      msgEl.className = 'save-msg err';
+      msgEl.textContent = '配置保存失败';
+    }
+  } catch {
+    msgEl.className = 'save-msg err';
+    msgEl.textContent = '网络连接异常';
+  }
+  setTimeout(() => { msgEl.textContent = ''; }, 3000);
+}
+
+async function maintAction(url) {
+  try {
+    const res = await fetch(url, { method: 'POST' });
+    const data = await res.json();
+    showToast('action-toast', data.message || data.detail || '操作完成');
+  } catch {
+    showToast('action-toast', '网络连接异常，指令未发送');
+  }
+  setTimeout(() => hideToast('action-toast'), 3000);
+}
+
+// Load config on page init
+fetch('/api/config').then(r => r.json()).then(data => { config = data; renderConfigSections(); }).catch(() => {
+  document.getElementById('save-msg').className = 'save-msg err';
+  document.getElementById('save-msg').textContent = '加载配置失败';
+});
+</script>
+</body>
 </html>

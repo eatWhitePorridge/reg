@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 CONFIG_PATH = BASE_DIR / "config.json"
 TOKEN_DIR = BASE_DIR / "codex_tokens"
 ACCOUNTS_FILE = BASE_DIR / "registered_accounts.txt"
-FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 # ================= 日志缓存 =================
 LOG_BUFFER: deque = deque(maxlen=500)
@@ -328,9 +328,7 @@ def stop_scheduler():
 
 
 # ---- 静态文件 (前端) ----
-if FRONTEND_DIR.is_dir():
-    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
-
+if FRONTEND_DIR.is_dir() and (FRONTEND_DIR / "index.html").is_file():
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str):
         file_path = FRONTEND_DIR / full_path
@@ -347,5 +345,5 @@ if __name__ == "__main__":
 
     import uvicorn
     print(f"Starting API server on http://0.0.0.0:8081")
-    print(f"Frontend: {'found' if FRONTEND_DIR.is_dir() else 'not built (run: cd frontend && npm run build)'}")
+    print(f"Frontend: {'found' if (FRONTEND_DIR / 'index.html').is_file() else 'not found (place index.html in frontend/)'}")
     uvicorn.run(app, host="0.0.0.0", port=8081, log_level="info")
