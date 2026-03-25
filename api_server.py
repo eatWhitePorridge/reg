@@ -182,15 +182,24 @@ def trigger_register(body: RegisterRequest):
         _task_state.started_at = datetime.now().isoformat()
         _task_state.error = ""
         try:
+            # 从 config.json 实时读取配置
+            cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
             ncs = _get_ncs()
-            proxy = ncs.DEFAULT_PROXY if hasattr(ncs, "DEFAULT_PROXY") else ""
+            # 注入实时配置到模块
+            ncs.MAIL_PROVIDER = cfg.get("mail_provider", ncs.MAIL_PROVIDER)
+            ncs.DEFAULT_PROXY = cfg.get("proxy", "") or ""
+            ncs.UPLOAD_API_URL = cfg.get("upload_api_url", "") or ""
+            ncs.UPLOAD_API_TOKEN = cfg.get("upload_api_token", "") or ""
+            total = body.total_accounts if body.total_accounts > 0 else int(cfg.get("total_accounts", 3))
+            workers = body.max_workers if body.max_workers > 0 else 3
+            cpa_n = body.cpa_upload_every_n if body.cpa_upload_every_n > 0 else int(cfg.get("cpa_upload_every_n", 3))
             ncs.run_batch(
-                total_accounts=body.total_accounts,
+                total_accounts=total,
                 output_file=str(ACCOUNTS_FILE),
-                max_workers=body.max_workers,
-                proxy=proxy,
+                max_workers=workers,
+                proxy=ncs.DEFAULT_PROXY,
                 cpa_cleanup=False,
-                cpa_upload_every_n=body.cpa_upload_every_n,
+                cpa_upload_every_n=cpa_n,
             )
             _append_log("注册任务完成")
         except Exception as e:
@@ -216,7 +225,11 @@ def trigger_upload_cpa():
         _task_state.started_at = datetime.now().isoformat()
         _task_state.error = ""
         try:
+            # 从 config.json 实时读取 CPA 配置，注入到模块变量
+            cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
             ncs = _get_ncs()
+            ncs.UPLOAD_API_URL = cfg.get("upload_api_url", "") or ncs.UPLOAD_API_URL
+            ncs.UPLOAD_API_TOKEN = cfg.get("upload_api_token", "") or ncs.UPLOAD_API_TOKEN
             ncs._upload_all_tokens_to_cpa()
             _append_log("CPA 上传完成")
         except Exception as e:
@@ -242,9 +255,21 @@ def trigger_cleanup():
         _task_state.started_at = datetime.now().isoformat()
         _task_state.error = ""
         try:
+            # 从 config.json 实时读取 CPA 配置
+            cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
+            url = cfg.get("upload_api_url", "")
+            token = cfg.get("upload_api_token", "")
+            if not url or not token:
+                raise ValueError("请先在系统设置中配置 CPA 数据回传接口和鉴权 Token")
             ncs = _get_ncs()
-            ncs._run_cpa_cleanup_before_register()
-            _append_log("CPA 清理完成")
+            payload = {
+                "management_url": url,
+                "management_token": token,
+                "active_probe": True, "probe_workers": 12,
+                "delete_workers": 8, "max_active_probes": 120,
+            }
+            result = ncs._cpa_execute_cleanup(payload, log=lambda msg: _append_log(msg))
+            _append_log(f"CPA 清理完成: 扫描 {result['scanned_total']} 个, 删除 {result['deleted_total']} 个")
         except Exception as e:
             _task_state.error = str(e)
             _append_log(f"CPA 清理失败: {e}")

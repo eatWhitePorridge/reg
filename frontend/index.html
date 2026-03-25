@@ -106,6 +106,9 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#000;colo
 .field-input{width:100%;background:#0a0a0a;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;font-size:14px;color:#f4f4f5;font-family:inherit;transition:all .2s;outline:none}
 .field-input::placeholder{color:#3f3f46}
 .field-input:focus{border-color:#71717a;box-shadow:0 0 0 1px #71717a}
+.field-select{width:100%;background:#0a0a0a;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;font-size:14px;color:#f4f4f5;font-family:inherit;transition:all .2s;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2371717a' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.field-select:focus{border-color:#71717a;box-shadow:0 0 0 1px #71717a}
+.field-select option{background:#1a1a1a;color:#f4f4f5}
 .config-toggle{position:relative;display:inline-flex;height:20px;width:36px;align-items:center;border-radius:999px;cursor:pointer;transition:background .2s;border:none}
 .config-toggle.off{background:#3f3f46}
 .config-toggle.on{background:#fff}
@@ -124,6 +127,12 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#000;colo
 .maint-card{padding:24px;display:flex;flex-direction:column;justify-content:space-between;gap:24px;background:#050505}
 .maint-card h3{font-size:14px;font-weight:500;color:#fff;margin-bottom:8px}
 .maint-card p{font-size:13px;color:#71717a;line-height:1.6}
+.maint-log{margin-top:16px;overflow:hidden;border-radius:8px;border:1px solid rgba(255,255,255,.06)}
+.maint-log-content{padding:12px 16px;max-height:250px;overflow-y:auto;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:12px;line-height:1.6;background:#030303}
+.maint-log-line{color:#71717a;padding:1px 4px;word-break:break-all}
+.maint-log-line.highlight{color:#d4d4d8}
+.maint-log-done{color:#10b981;font-weight:500}
+.maint-log-err{color:#fb7185;font-weight:500}
 
 /* Config save bar */
 .save-bar{display:flex;align-items:center;gap:16px}
@@ -240,14 +249,20 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#000;colo
           <h3>强制全量同步 CPA</h3>
           <p>无视上传间隔设置，立即扫描并在后台强制将所有本地已注册未上报的 token 推送至服务端。</p>
         </div>
-        <button class="btn btn-secondary btn-wide" onclick="maintAction('/api/upload-cpa')">立即执行同步</button>
+        <button id="btn-upload-cpa" class="btn btn-secondary btn-wide" onclick="maintAction('/api/upload-cpa', 'upload-cpa')">立即执行同步</button>
+        <div id="maint-log-upload-cpa" class="maint-log" style="display:none">
+          <div class="maint-log-content" id="maint-log-content-upload-cpa"></div>
+        </div>
       </div>
       <div class="card maint-card" style="border-color:rgba(136,19,55,.2)">
         <div>
           <h3>强力清理本地废号</h3>
           <p>对接 CPA 云端执行 401/403 (Invalid Token) 鉴权扫描，并移除本地数据缓存，防止脏数据堆积。</p>
         </div>
-        <button class="btn btn-danger btn-wide" onclick="maintAction('/api/cleanup')">立刻启动清理</button>
+        <button id="btn-cleanup" class="btn btn-danger btn-wide" onclick="maintAction('/api/cleanup', 'cleanup')">立刻启动清理</button>
+        <div id="maint-log-cleanup" class="maint-log" style="display:none">
+          <div class="maint-log-content" id="maint-log-content-cleanup"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -266,7 +281,7 @@ let advancedVisible = false;
 
 // ── Config field definitions ──
 const CONFIG_FIELDS = [
-  { key: 'mail_provider', label: '邮箱服务商 (mail_provider)', type: 'text' },
+  { key: 'mail_provider', label: '邮箱服务商 (mail_provider)', type: 'select', options: ['tempmail_lol', 'duckmail', 'cfmail', 'yydsmail'] },
   { key: 'proxy', label: '代理服务器地址', type: 'text' },
   { key: 'total_accounts', label: '默认批量注册数量', type: 'number' },
   { key: 'enable_oauth', label: '启用 OAuth 验证', type: 'bool' },
@@ -288,9 +303,14 @@ const CONFIG_FIELDS = [
 
 const SETTINGS_GROUPS = [
   { id: 'basic', title: '核心参数', description: '批量注册任务的基础参数与默认行为。', fields: ['total_accounts', 'cpa_upload_every_n', 'proxy'] },
-  { id: 'email', title: '邮箱服务配置', description: '设置临时邮箱接口路径及API鉴权密钥。', fields: ['mail_provider', 'duckmail_api_base', 'duckmail_bearer', 'tempmail_lol_api_base', 'yydsmail_api_base', 'yydsmail_api_key'] },
+  { id: 'email', title: '邮箱服务配置', description: '选择临时邮箱服务商，并填写对应的鉴权密钥。', fields: ['mail_provider'], dynamicFields: {
+    duckmail: ['duckmail_bearer'],
+    yydsmail: ['yydsmail_api_key'],
+    tempmail_lol: [],
+    cfmail: [],
+  }},
   { id: 'cpa', title: 'CPA 平台集成', description: '配置外部数据遥测回传及预检规则。', fields: ['upload_api_url', 'upload_api_token', 'cpa_cleanup_enabled'] },
-  { id: 'advanced', title: '开发者选项 (底层配置)', description: '系统底层文件路径映射及驱动引擎配置。非必要请勿修改。', fields: ['enable_oauth', 'oauth_required', 'output_file', 'ak_file', 'rk_file', 'token_json_dir'] },
+  { id: 'advanced', title: '开发者选项 (底层配置)', description: '系统底层文件路径映射及驱动引擎配置。非必要请勿修改。', fields: ['enable_oauth', 'oauth_required', 'duckmail_api_base', 'duckmail_bearer', 'tempmail_lol_api_base', 'yydsmail_api_base', 'yydsmail_api_key', 'output_file', 'ak_file', 'rk_file', 'token_json_dir'] },
 ];
 
 // ── Tab switching ──
@@ -402,7 +422,7 @@ async function toggleAuto() {
 }
 
 async function quickRegister() {
-  const data = await apiPost('/api/register', { total_accounts: 3, max_workers: 3, cpa_upload_every_n: 3 });
+  const data = await apiPost('/api/register', {});
   showToast('dash-toast', data.message || data.detail || '操作完成');
 }
 
@@ -440,13 +460,27 @@ function renderConfigSections() {
     html += '<div class="card config-section">';
     html += '<div class="config-section-header"><div class="config-section-title">' + group.title + '</div><div class="config-section-desc">' + group.description + '</div></div>';
     html += '<div class="config-grid">';
-    for (const fieldKey of group.fields) {
+    // Collect fields: static + dynamic based on mail_provider
+    let allFields = [...group.fields];
+    if (group.dynamicFields) {
+      const provider = config['mail_provider'] || 'tempmail_lol';
+      const extra = group.dynamicFields[provider] || [];
+      allFields = allFields.concat(extra);
+    }
+    for (const fieldKey of allFields) {
       const field = CONFIG_FIELDS.find(f => f.key === fieldKey);
       if (!field) continue;
       html += '<div><div class="field-label">' + field.label + '</div>';
       if (field.type === 'bool') {
         const on = !!config[field.key];
         html += '<div style="height:40px;display:flex;align-items:center"><button class="config-toggle ' + (on ? 'on' : 'off') + '" onclick="toggleConfig(\'' + field.key + '\')"><span class="config-toggle-dot"></span></button></div>';
+      } else if (field.type === 'select') {
+        const val = config[field.key] ?? '';
+        html += '<select class="field-select" onchange="updateConfig(\'' + field.key + '\', this.value, \'text\'); renderConfigSections();">';
+        for (const opt of field.options) {
+          html += '<option value="' + opt + '"' + (val === opt ? ' selected' : '') + '>' + opt + '</option>';
+        }
+        html += '</select>';
       } else {
         const val = config[field.key] ?? '';
         html += '<input class="field-input" type="' + (field.type === 'number' ? 'number' : 'text') + '" value="' + escapeHtml(String(val)) + '" placeholder="输入 ' + field.label + '..." onchange="updateConfig(\'' + field.key + '\', this.value, \'' + field.type + '\')">';
@@ -496,15 +530,79 @@ async function saveConfig() {
   setTimeout(() => { msgEl.textContent = ''; }, 3000);
 }
 
-async function maintAction(url) {
+let maintLogOffset = 0;
+let maintPollingId = null;
+
+async function maintAction(url, id) {
+  const btn = document.getElementById('btn-' + id);
+  const logPanel = document.getElementById('maint-log-' + id);
+  const logContent = document.getElementById('maint-log-content-' + id);
+  const origText = btn.textContent;
+
+  // Record current log offset before starting
+  try {
+    const lr = await fetch('/api/logs?since=0').then(r => r.json());
+    maintLogOffset = lr.total;
+  } catch { maintLogOffset = 0; }
+
+  // Clear previous results and show panel
+  logContent.innerHTML = '<div class="maint-log-line" style="color:#71717a;font-style:italic">等待执行结果...</div>';
+  logPanel.style.display = 'block';
+
+  // Disable button with spinner
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="spinner" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> 执行中...';
+
+  // Fire the action
   try {
     const res = await fetch(url, { method: 'POST' });
     const data = await res.json();
-    showToast('action-toast', data.message || data.detail || '操作完成');
+    if (!res.ok) {
+      logContent.innerHTML = '<div class="maint-log-line maint-log-err">' + escapeHtml(data.detail || '执行失败') + '</div>';
+      btn.disabled = false;
+      btn.textContent = origText;
+      return;
+    }
   } catch {
-    showToast('action-toast', '网络连接异常，指令未发送');
+    logContent.innerHTML = '<div class="maint-log-line maint-log-err">网络连接异常</div>';
+    btn.disabled = false;
+    btn.textContent = origText;
+    return;
   }
-  setTimeout(() => hideToast('action-toast'), 3000);
+
+  // Poll logs until task finishes
+  let maintLogs = [];
+  if (maintPollingId) clearInterval(maintPollingId);
+  maintPollingId = setInterval(async () => {
+    try {
+      // Fetch new logs
+      const lr = await fetch('/api/logs?since=' + maintLogOffset).then(r => r.json());
+      if (lr.logs.length > 0) {
+        // Filter out noisy HTTP request logs
+        const filtered = lr.logs.filter(l => !l.includes('" 200 OK') || !l.includes('INFO:'));
+        maintLogs = maintLogs.concat(filtered);
+        maintLogOffset = lr.total;
+        if (maintLogs.length > 0) {
+          logContent.innerHTML = maintLogs.map(l => {
+            let cls = 'maint-log-line';
+            if (l.includes('完成') || l.includes('成功')) cls += ' maint-log-done';
+            else if (l.includes('失败') || l.includes('错误') || l.includes('异常')) cls += ' maint-log-err';
+            else if (!l.includes('INFO:')) cls += ' highlight';
+            return '<div class="' + cls + '">' + escapeHtml(l) + '</div>';
+          }).join('');
+          logContent.scrollTop = logContent.scrollHeight;
+        }
+      }
+      // Check if task finished
+      const st = await fetch('/api/status').then(r => r.json());
+      if (!st.task.running) {
+        clearInterval(maintPollingId);
+        maintPollingId = null;
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    } catch {}
+  }, 1500);
 }
 
 // Load config on page init

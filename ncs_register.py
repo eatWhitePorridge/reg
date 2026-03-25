@@ -38,7 +38,7 @@ def _load_config():
         "tempmail_lol_api_base": "https://api.tempmail.lol/v2",
         "yydsmail_api_base": "https://maliapi.215.im/v1",
         "yydsmail_api_key": "",
-        "proxy": "http://127.0.0.1:7890",
+        "proxy": "",
         "output_file": "registered_accounts.txt",
         "enable_oauth": True,
         "oauth_required": True,
@@ -714,11 +714,13 @@ def _upload_all_tokens_to_cpa():
         return
     json_files = [f for f in os.listdir(token_dir) if f.endswith(".json")]
     if not json_files:
+        print("[CPA] 没有待上传的 token 文件")
         return
-    print(f"\n{'='*60}\n  [CPA] 开始上传 {len(json_files)} 个账号到 CPA 管理平台\n{'='*60}")
+    total = len(json_files)
+    print(f"\n{'='*60}\n  [CPA] 开始上传 {total} 个账号到 CPA 管理平台\n{'='*60}")
     uploaded = 0
     failed = 0
-    for filename in json_files:
+    for i, filename in enumerate(json_files, 1):
         filepath = os.path.join(token_dir, filename)
         if _upload_token_json(filepath):
             try:
@@ -728,6 +730,7 @@ def _upload_all_tokens_to_cpa():
             uploaded += 1
         else:
             failed += 1
+        print(f"  [CPA] 进度: {i}/{total} (成功 {uploaded}, 失败 {failed})")
     print(f"\n  [CPA] 上传完成: 成功 {uploaded} 个, 失败 {failed} 个\n{'='*60}")
 
 
@@ -1026,6 +1029,9 @@ class _CpaCleanupOrchestrator:
                         status_message = _cpa_safe_status_message(future_map[future])
                         probed_hits.append({"name": name, "keyword": reason,
                                             "status_message": status_message})
+                        self._log(f"[CPA清理] 探测无效: {name} ({reason}) [{done}/{total}]")
+                    elif done % 20 == 0 or done == total:
+                        self._log(f"[CPA清理] 探测进度: {done}/{total} (发现无效 {len(probed_hits)} 个)")
 
         merged_by_name = {}
         for item in fixed_hits + probed_hits:
@@ -1033,6 +1039,7 @@ class _CpaCleanupOrchestrator:
                 merged_by_name[item["name"]] = item
 
         matched = list(merged_by_name.values())
+        self._log(f"[CPA清理] 静态筛选无效 {len(fixed_hits)} 个, 探测无效 {len(probed_hits)} 个, 合计待删除 {len(matched)} 个")
         deleted_main = 0
         failures = []
         if matched:
